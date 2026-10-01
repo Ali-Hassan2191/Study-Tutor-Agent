@@ -2,11 +2,77 @@ import os
 
 import streamlit as st
 from crewai import LLM, Memory
+from groq import Groq
 from sklearn.feature_extraction.text import HashingVectorizer
 
 
 MODEL_NAME = "openai/gpt-oss-120b"
-GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+
+
+class GroqCrewLLM(LLM):
+    """
+    CrewAI-compatible LLM that sends requests directly to Groq.
+
+    This avoids CrewAI's custom_openai model-prefix handling, which strips
+    the "openai/" prefix that Groq requires for GPT-OSS 120B.
+    """
+
+    def call(
+        self,
+        messages,
+        tools=None,
+        callbacks=None,
+        available_functions=None,
+        **kwargs,
+    ):
+        api_key = os.getenv("GROQ_API_KEY")
+
+        if not api_key:
+            raise ValueError(
+                "GROQ_API_KEY is not configured. "
+                "Add it to Streamlit secrets."
+            )
+
+        if isinstance(messages, str):
+            messages = [
+                {
+                    "role": "user",
+                    "content": messages,
+                }
+            ]
+
+        client = Groq(api_key=api_key)
+
+        request = {
+            "model": MODEL_NAME,
+            "messages": messages,
+            "temperature": 0.3,
+        }
+
+        if tools:
+            request["tools"] = tools
+            request["tool_choice"] = "auto"
+
+        if "max_tokens" in kwargs and kwargs["max_tokens"]:
+            request["max_tokens"] = kwargs["max_tokens"]
+
+        response = client.chat.completions.create(**request)
+
+        message = response.choices[0].message
+
+        if message.tool_calls:
+            return message.tool_calls
+
+        return message.content or ""
+
+    def supports_function_calling(self) -> bool:
+        return True
+
+    def supports_stop_words(self) -> bool:
+        return False
+
+    def get_context_window_size(self) -> int:
+        return 131072
 
 
 def get_llm():
@@ -15,14 +81,11 @@ def get_llm():
     if not api_key:
         raise ValueError(
             "GROQ_API_KEY is not configured. "
-            "Add it to your environment variables."
+            "Add it to Streamlit secrets."
         )
 
-    return LLM(
-        model="openai/gpt-oss-120b",
-        custom_openai=True,
-        base_url="https://api.groq.com/openai/v1",
-        api_key=api_key,
+    return GroqCrewLLM(
+        model=MODEL_NAME,
         temperature=0.3,
     )
 
@@ -77,9 +140,11 @@ Tutor response:
 
 def recall(session_id: str, question: str, limit: int = 5):
     memory = get_student_memory(session_id)
+
     matches = memory.recall(
         question,
         limit=limit,
         depth="shallow",
     )
+
     return [match.record.content for match in matches]
