@@ -1,7 +1,8 @@
 import os
 
 import streamlit as st
-from crewai import LLM, Memory
+from crewai import Memory
+from crewai.llms.base_llm import BaseLLM
 from groq import Groq
 from sklearn.feature_extraction.text import HashingVectorizer
 
@@ -9,12 +10,12 @@ from sklearn.feature_extraction.text import HashingVectorizer
 MODEL_NAME = "openai/gpt-oss-120b"
 
 
-class GroqCrewLLM(LLM):
+class GroqCrewLLM(BaseLLM):
     """
-    CrewAI-compatible LLM that sends requests directly to Groq.
+    Custom CrewAI LLM that calls Groq directly.
 
-    This avoids CrewAI's custom_openai model-prefix handling, which strips
-    the "openai/" prefix that Groq requires for GPT-OSS 120B.
+    This bypasses CrewAI's OpenAI provider routing and sends
+    the exact Groq model ID: openai/gpt-oss-120b.
     """
 
     def call(
@@ -23,6 +24,9 @@ class GroqCrewLLM(LLM):
         tools=None,
         callbacks=None,
         available_functions=None,
+        from_task=None,
+        from_agent=None,
+        response_model=None,
         **kwargs,
     ):
         api_key = os.getenv("GROQ_API_KEY")
@@ -46,20 +50,21 @@ class GroqCrewLLM(LLM):
         request = {
             "model": MODEL_NAME,
             "messages": messages,
-            "temperature": 0.3,
+            "temperature": self.temperature,
         }
 
         if tools:
             request["tools"] = tools
             request["tool_choice"] = "auto"
 
-        if "max_tokens" in kwargs and kwargs["max_tokens"]:
+        if kwargs.get("max_tokens"):
             request["max_tokens"] = kwargs["max_tokens"]
 
         response = client.chat.completions.create(**request)
 
         message = response.choices[0].message
 
+        # CrewAI expects tool calls as a list when native tools are used.
         if message.tool_calls:
             return message.tool_calls
 
