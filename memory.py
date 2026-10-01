@@ -24,7 +24,6 @@ def get_llm():
         base_url=GROQ_BASE_URL,
         api_key=api_key,
         temperature=0.3,
-        max_tokens=4096,
     )
 
 
