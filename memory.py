@@ -19,8 +19,9 @@ def get_llm():
         )
 
     return LLM(
-        model="groq/openai/gpt-oss-120b",
-        base_url=GROQ_BASE_URL,
+        model="openai/gpt-oss-120b",
+        custom_openai=True,
+        base_url="https://api.groq.com/openai/v1",
         api_key=api_key,
         temperature=0.3,
     )
