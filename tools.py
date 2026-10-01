@@ -20,7 +20,7 @@ class CalculatorTool(BaseTool):
         "Calculate mathematical expressions accurately. "
         "Use this tool whenever a numerical calculation is required."
     )
-    args_schema = CalculatorInput
+    args_schema: type[BaseModel] = CalculatorInput
 
     def _run(self, expression: str) -> str:
         try:
@@ -78,7 +78,7 @@ class StudyMaterialSearchTool(BaseTool):
         "Search the student's uploaded study material and return the most "
         "relevant passages. Use this tool when uploaded material is available."
     )
-    args_schema = MaterialSearchInput
+    args_schema: type[BaseModel] = MaterialSearchInput
     chunks: List[str] = Field(default_factory=list)
 
     def _run(self, query: str) -> str:
