@@ -5,7 +5,7 @@ from crewai import LLM, Memory
 from sklearn.feature_extraction.text import HashingVectorizer
 
 
-MODEL_NAME = "gemini/gemini-3.8-flash"
+MODEL_NAME = "gemini/gemini-3.6-flash"
 
 
 def get_llm():
